@@ -1,5 +1,4 @@
-
-name: Build AMOPER APK
+ Build AMOPER APK
 
 on:
   push:
@@ -21,114 +20,72 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
       - name: Find Android project
-        id: android-project
+        id: project
         shell: bash
         run: |
           set -e
 
-          echo "Repository contents:"
-          find . -maxdepth 3 -type f | sort | head -300
+          echo "Searching for Gradle wrapper..."
 
-          PROJECT_DIR=""
+          GRADLEW=$(find . -type f -name "gradlew" -not -path "./.git/*" | head -n 1)
 
-          # First preference: Gradle wrapper
-          GRADLEW=$(find . -type f -name "gradlew" -not -path "./.git/*" | head -n 1 || true)
-
-          if [ -n "$GRADLEW" ]; then
-            PROJECT_DIR=$(dirname "$GRADLEW")
-          else
-            # Fallback: find settings.gradle/settings.gradle.kts
-            SETTINGS=$(find . -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -not -path "./.git/*" | head -n 1 || true)
-
-            if [ -n "$SETTINGS" ]; then
-              PROJECT_DIR=$(dirname "$SETTINGS")
-            fi
-          fi
-
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "::error::No Android Gradle project was found."
-            echo "The repository must contain gradlew or settings.gradle/settings.gradle.kts."
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew was not found."
+            echo ""
+            echo "Repository structure:"
+            find . -maxdepth 4 -type f | sort
             exit 1
           fi
 
-          # Convert ./ to .
+          PROJECT_DIR=$(dirname "$GRADLEW")
           PROJECT_DIR="${PROJECT_DIR#./}"
 
-          echo "Android project found at: $PROJECT_DIR"
-          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
-
-      - name: Check Android project
-        working-directory: ${{ steps.android-project.outputs.project_dir }}
-        shell: bash
-        run: |
-          echo "Android project directory:"
-          pwd
-
-          echo ""
-          echo "Project files:"
-          ls -la
-
-          echo ""
-          echo "Gradle files:"
-          find . -maxdepth 3 -type f \
-            \( -name "gradlew" -o -name "settings.gradle" -o -name "settings.gradle.kts" -o -name "build.gradle" -o -name "build.gradle.kts" \) \
-            -print
-
-      - name: Make Gradle wrapper executable
-        working-directory: ${{ steps.android-project.outputs.project_dir }}
-        shell: bash
-        run: |
-          set -e
-
-          if [ ! -f "./gradlew" ]; then
-            echo "::error::gradlew is missing from the Android project."
-            echo "Project directory: $(pwd)"
-            exit 1
+          if [ -z "$PROJECT_DIR" ]; then
+            PROJECT_DIR="."
           fi
 
-          chmod +x ./gradlew
+          echo "Android project found in: $PROJECT_DIR"
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
-      - name: Verify Gradle wrapper
-        working-directory: ${{ steps.android-project.outputs.project_dir }}
+      - name: Make Gradle executable
+        working-directory: ${{ steps.project.outputs.project_dir }}
         shell: bash
-        run: |
-          ./gradlew --version
+        run: chmod +x ./gradlew
 
-      - name: Build AMOPER Debug APK
-        working-directory: ${{ steps.android-project.outputs.project_dir }}
+      - name: Check Gradle
+        working-directory: ${{ steps.project.outputs.project_dir }}
         shell: bash
-        run: |
-          ./gradlew clean assembleDebug --stacktrace
+        run: ./gradlew --version
 
-      - name: Find generated APK
+      - name: Build Debug APK
+        working-directory: ${{ steps.project.outputs.project_dir }}
+        shell: bash
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Find APK
         id: apk
-        working-directory: ${{ steps.android-project.outputs.project_dir }}
+        working-directory: ${{ steps.project.outputs.project_dir }}
         shell: bash
         run: |
           set -e
 
-          echo "Searching for APK files..."
-
-          find . -type f -name "*.apk" -print
-
-          APK=$(find . -type f -path "*/build/outputs/apk/debug/*.apk" | head -n 1 || true)
+          APK=$(find . -type f -name "*.apk" | head -n 1)
 
           if [ -z "$APK" ]; then
-            echo "::error::No debug APK was generated."
+            echo "ERROR: APK was not generated."
             exit 1
           fi
 
           echo "APK found: $APK"
-          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
 
-      - name: Upload AMOPER APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: AMOPER-debug-apk
-          path: ${{ steps.android-project.outputs.project_dir }}/${{ steps.apk.outputs.apk_path }}
+          path: ${{ steps.project.outputs.project_dir }}/${{ steps.apk.outputs.apk }}
           if-no-files-found: error
           retention-days: 30
 ```
