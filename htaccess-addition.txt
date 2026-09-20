@@ -1,0 +1,5 @@
+Add this line to the project's existing .htaccess, right after the
+"RewriteRule ^api\.php$ api/index.php [L,QSA]" line, so clean
+/api/... URLs (used by the Android app) route to the front controller:
+
+RewriteRule ^api/(.*)$ api/index.php?r=$1 [L,QSA]

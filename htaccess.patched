@@ -1,0 +1,20 @@
+RewriteEngine On
+
+# Keep old public URLs working while PHP implementations live in modules/ and api/.
+RewriteRule ^api\.php$ api/index.php [L,QSA]
+RewriteRule ^api/(.*)$ api/index.php?r=$1 [L,QSA]
+RewriteRule ^api_legacy\.php$ api/legacy.php [L,QSA]
+RewriteRule ^portal\.php$ modules/admin/portal.php [L,QSA]
+
+RewriteRule ^(account|addresses|forgot-password|invoices|messages|notifications|order|orders|phones|profile|quotes|refund|returns|reviews|security|settings|support|wishlist|recently-viewed)\.php$ modules/customer/$1.php [L,QSA]
+RewriteRule ^(admin-control|admin-countries|admin-customers|admin-orders|admin-payments|admin-products|admin-rates|admin-reports|admin-returns|admin-routes|admin-sellers|admin-settings|admin-zones|command-center|admin)\.php$ modules/admin/$1.php [L,QSA]
+RewriteRule ^(consolidation|customs-operations|customs-review|customs|delivery-attempts|dispatch|document-download|drivers|fleet-operations|fleet|map|quote|route-planner|route|shipment-book|shipment-create|shipment-documents|shipment-history|shipment-label|track|vehicle-transport|vehicles|warehouse-bins|warehouse-operations|warehouses|load-board|quote-manager|pod)\.php$ modules/logistics/$1.php [L,QSA]
+RewriteRule ^(agriculture|beauty|cart|categories|checkout|fashion|home|product-questions|product|search)\.php$ modules/marketplace/$1.php [L,QSA]
+RewriteRule ^(seller-analytics|seller-customers|seller-orders|seller-payouts|seller-product-manage|seller-products|seller-promotions|seller-store|seller)\.php$ modules/seller/$1.php [L,QSA]
+
+DirectoryIndex index.php
+
+# Protect application configuration
+<FilesMatch "^(config\.php|database\.php)$">
+    Require all denied
+</FilesMatch>
