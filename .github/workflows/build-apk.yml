@@ -1,7 +1,7 @@
 
 name: Build AMOPER APK
 
-"on":
+on:
   workflow_dispatch:
 
 jobs:
@@ -9,60 +9,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
-      - name: Show files
-        run: find . -maxdepth 4 -type f | sort
-
-      - name: Find Gradle
-        id: gradle
-        shell: bash
+      - name: Find Android project
         run: |
-          GRADLEW=$(find . -type f -name "gradlew" -not -path "./.git/*" | head -n 1)
+          echo "Searching for Android project..."
+
+          GRADLEW=$(find . -type f -name gradlew -not -path './.git/*' | head -n 1)
 
           if [ -z "$GRADLEW" ]; then
-            echo "ERROR: gradlew not found"
+            echo "ERROR: gradlew was not found."
+            echo "Repository files:"
+            find . -maxdepth 4 -type f | sort
             exit 1
           fi
 
-          echo "Found: $GRADLEW"
+          echo "Gradle wrapper found:"
+          echo "$GRADLEW"
 
-          PROJECT_DIR=$(dirname "$GRADLEW")
-          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          chmod +x "$GRADLEW"
 
-      - name: Make Gradle executable
-        working-directory: ${{ steps.gradle.outputs.project_dir }}
-        run: chmod +x ./gradlew
+          echo "Building APK..."
 
-      - name: Build APK
-        working-directory: ${{ steps.gradle.outputs.project_dir }}
-        run: ./gradlew assembleDebug --stacktrace
+          "$GRADLEW" assembleDebug --stacktrace
 
-      - name: Find APK
-        id: apk
-        working-directory: ${{ steps.gradle.outputs.project_dir }}
-        shell: bash
+      - name: Show generated APK
         run: |
-          APK=$(find . -type f -name "*.apk" | head -n 1)
+          echo "Searching for generated APK..."
 
-          if [ -z "$APK" ]; then
-            echo "ERROR: APK was not generated"
-            exit 1
-          fi
+          find . -type f -name "*.apk" -print
 
-          echo "APK found: $APK"
-          echo "apk=$APK" >> "$GITHUB_OUTPUT"
-
-      - name: Upload APK
+      - name: Upload AMOPER APK
         uses: actions/upload-artifact@v4
         with:
           name: AMOPER-debug-apk
-          path: ${{ steps.gradle.outputs.project_dir }}/${{ steps.apk.outputs.apk }}
+          path: '**/build/outputs/apk/**/*.apk'
+          if-no-files-found: error
+          retention-days: 30
 ```
